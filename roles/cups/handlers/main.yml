@@ -1,0 +1,6 @@
+---
+- name: restart_cups
+  service:
+    name: cups
+    state: restarted
+    enabled: yes

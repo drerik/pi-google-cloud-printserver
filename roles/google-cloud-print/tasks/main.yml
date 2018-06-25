@@ -1,0 +1,86 @@
+---
+- user:
+    name: cloud-print-connector
+    shell: /usr/sbin/nologin
+    comment: "Google print user"
+    system: yes
+
+- name: Installing Google cloud print dependencies
+  apt:
+    name: "{{ item }}"
+    update_cache: Yes
+    state: latest
+  with_items:
+    - build-essential
+    - libcups2-dev
+    - libavahi-client-dev
+    - git
+    - bzr
+
+- name: Creating gcp folder
+  file:
+    path: /opt/cloud-print-connector
+    state: directory
+    mode: 0755
+    owner: cloud-print-connector
+
+- name: build Google cloud print connector
+  shell: "GOPATH=/opt/cloud-print-connector /usr/local/go/bin/go get github.com/google/cloud-print-connector/gcp-cups-connector"
+  args:
+    creates: /opt/cloud-print-connector/bin/gcp-cups-connector
+
+- name: Set owner to /opt/cloud-print-connector/bin/gcp-cups-connector
+  file:
+    path: /opt/cloud-print-connector/bin/gcp-cups-connector
+    owner: cloud-print-connector
+
+- name: build Google cloud print util
+  shell: "GOPATH=/opt/cloud-print-connector /usr/local/go/bin/go get github.com/google/cloud-print-connector/gcp-connector-util"
+  args:
+    creates: /opt/cloud-print-connector/bin/gcp-connector-util
+
+- name: Set owner to /opt/cloud-print-connector/bin/gcp-connector-util
+  file:
+    path: /opt/cloud-print-connector/bin/gcp-connector-util
+    owner: cloud-print-connector
+
+- name: status for new config file
+  stat:
+    path: /home/pi/gcp-cups-connector.config.json
+  register: gcp_cups_connector_new_config
+
+- name: Copy new config file
+  copy:
+    src:  /home/pi/gcp-cups-connector.config.json
+    remote_src: True
+    dest: /opt/cloud-print-connector/gcp-cups-connector.config.json
+    mode: 0660
+    owner: cloud-print-connector
+  when: gcp_cups_connector_new_config.stat.exists == True
+
+- name: Remove new config after copying
+  file:
+    path: /home/pi/gcp-cups-connector.config.json
+    state: absent
+
+- name: Status for gcp config file
+  stat:
+    path: /opt/cloud-print-connector/gcp-cups-connector.config.json
+  register: gcp_cups_connector_config
+
+- name: Show debug message if gcp is not initialized
+  debug:
+    msg: Connector is not initialized, run "ssh{{ ansible_user }}@{{ ansible_host }} sudo /opt/cloud-print-connector/bin/gcp-connector-util init" on the pi and rerun the playbook.
+  when: gcp_cups_connector_config.stat.exists == False
+
+
+- name: Upload cloud-print-connector.service
+  copy:
+    src: cloud-print-connector.service
+    dest: /etc/systemd/system/cloud-print-connector.service
+
+- name: Install cloud-print-connector systemd service
+  systemd:
+    name: cloud-print-connector.service
+    state: started
+    daemon_reload: yes

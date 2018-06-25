@@ -1,0 +1,7 @@
+---
+- hosts: cloud-print-server
+  roles:
+    - pi
+    - cups
+    - golang
+    - google-cloud-print

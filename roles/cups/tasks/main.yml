@@ -1,0 +1,17 @@
+---
+- name: Install cups
+  apt:
+    name: cups
+    update_cache: yes
+    state: latest
+
+- name: Add pi to lpadmin group
+  user:
+    name: pi
+    groups: lpadmin,adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi
+
+- name: Copy over cupsd.conf
+  copy:
+    src: etc/cups/cupsd.conf
+    dest: /etc/cups/cupsd.conf
+  notify: restart_cups
